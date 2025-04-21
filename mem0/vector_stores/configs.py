@@ -28,7 +28,7 @@ class VectorStoreConfig(BaseModel):
         "langchain": "LangchainConfig",
     }
 
-    @model_validator(mode="after")
+    @model_validator(mode="after")  # 在模型实例化后执行验证和动态创建配置
     def validate_and_create_config(self) -> "VectorStoreConfig":
         provider = self.provider
         config = self.config
@@ -36,6 +36,7 @@ class VectorStoreConfig(BaseModel):
         if provider not in self._provider_configs:
             raise ValueError(f"Unsupported vector store provider: {provider}")
 
+        # 根据 provider 动态导入对应的配置类（如 QdrantConfig）
         module = __import__(
             f"mem0.configs.vector_stores.{provider}",
             fromlist=[self._provider_configs[provider]],
@@ -50,9 +51,11 @@ class VectorStoreConfig(BaseModel):
                 raise ValueError(f"Invalid config type for provider {provider}")
             return self
 
+        # 如果 config 中缺少 path 字段，且目标配置类需要该字段，则设置默认路径。
         # also check if path in allowed kays for pydantic model, and whether config extra fields are allowed
         if "path" not in config and "path" in config_class.__annotations__:
             config["path"] = f"/tmp/{provider}"
 
+        # 实例化配置类
         self.config = config_class(**config)
         return self
